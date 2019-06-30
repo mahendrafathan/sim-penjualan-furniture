@@ -28,7 +28,7 @@ public abstract class AbstractManagedBean implements Serializable {
 
     public AbstractManagedBean() {
     }
-    
+
     protected void addMessage(String summary) {
         FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(summary));
     }

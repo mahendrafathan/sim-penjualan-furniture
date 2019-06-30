@@ -8,7 +8,7 @@
     <ui:define name="content">
         <h:form prependId="false">
             <p:growl id="idGrowl" showDetail="false"/>
-            <p:panel header="Penjualan" class="card-w-title ui-fluid no-border"
+            <p:panel header="Transaksi" class="card-w-title ui-fluid no-border"
                      style="text-align: -webkit-center;">
                 <p:panelGrid columns="2" columnClasses="ui-grid-col-4,ui-grid-col-8"
                              style="width: 100%"
@@ -80,7 +80,7 @@
                                                    itemValue="#{barang}"/>
                                 </p:selectOneMenu>
                             </p:column>
-                            <p:column headerText="Jumlah">
+                            <p:column headerText="Jumlah" style="width: 100px;">
                                 <p:inputText value="#{list.jumlahJual}">
                                     <p:ajax listener="#{penjualanMBean.totalHarga()}" update="idList, idTotalHarga"/>
                                 </p:inputText>
@@ -90,6 +90,13 @@
                             </p:column>
                             <p:column headerText="Sub Total">
                                 <p:inputText value="#{list.subTotal}" disabled="true"/>
+                            </p:column>
+                            <p:column headerText="Aksi">
+                                <p:commandButton style="max-width: 80px" 
+                                                 actionListener="#{penjualanMBean.hapusBaris()}"
+                                                 icon="fa fa-trash" update="idList" process="@this">
+                                    <f:attribute name="penjualandtl" value="#{list}" />
+                                </p:commandButton>
                             </p:column>
                         </p:dataTable>
                         <p:panel id="idTotalHarga" class="no-border" 
@@ -123,12 +130,18 @@
                                                     </p:panelGrid>
                                                 </p:panel>-->
                         <p:panel class="no-border no-padding" style="float: right;">
-                            <p:panelGrid class="no-border" columns="2" columnClasses="ui-g-6,ui-g-6"
+                            <p:panelGrid class="no-border" columns="1" columnClasses="ui-g-12"
                                          style="width: 100%;">
-                                <p:commandButton value="Cetak" icon="fa fa-print" 
-                                                 style="width: 140px;"/>
+                                <p:commandLink id="cetak" value="Cetak" ajax="false" target="_blank" 
+                                               style="padding: .3em 1em; width: 150px; display: none"
+                                               styleClass="ui-button ui-widget ui-corner-all ui-button-text-only ui-button-text link-button"  
+                                               actionListener="#{penjualanMBean.cetakTransaksi()}"
+                                               />
                                 <p:commandButton value="Simpan" icon="fa fa-save" 
-                                                 style="width: 140px; background-color: #008000e0;"/>
+                                                 style="width: 140px; background-color: #008000e0;"
+                                                 actionListener="#{penjualanMBean.simpan()}" update="@form">
+                                    <p:ajax event="click" update="@form" delay="4000" listener="#{penjualanMBean.reload()}"/>
+                                </p:commandButton>
                             </p:panelGrid>
                         </p:panel>
                     </p:panelGrid>

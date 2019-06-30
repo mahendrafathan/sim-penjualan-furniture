@@ -30,9 +30,28 @@ import furniture.app.repo.PenjualanDtlRepo;
 import furniture.app.repo.PenjualanRepo;
 import furniture.app.web.util.AbstractManagedBean;
 import static furniture.app.web.util.AbstractManagedBean.showGrowl;
+import java.io.File;
+import java.io.IOException;
 import java.math.BigInteger;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import javax.faces.context.ExternalContext;
+import javax.faces.context.FacesContext;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.sql.DataSource;
+import lombok.Cleanup;
+import net.sf.jasperreports.engine.JRException;
+import net.sf.jasperreports.engine.JRParameter;
+import net.sf.jasperreports.engine.JasperCompileManager;
+import net.sf.jasperreports.engine.JasperExportManager;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import org.springframework.beans.factory.annotation.Value;
 
 /**
  *
@@ -64,10 +83,15 @@ public class PenjualanMBean extends AbstractManagedBean implements InitializingB
     private List<MstPelanggan> listPelanggan;
 
     private String notaJual;
-    
-    private Integer bayar;
-    private Integer kembali;
+    private String cariNotaJual;
+    private Date tglDari;
+    private Date tglSampai;
 
+    @Autowired
+    private DataSource dataSource;
+
+//    private Integer bayar;
+//    private Integer kembali;
     SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy");
 
     public void init() {
@@ -77,6 +101,7 @@ public class PenjualanMBean extends AbstractManagedBean implements InitializingB
 
     @Override
     public void afterPropertiesSet() throws Exception {
+        listPenjualan = penjualanRepo.findAllByStatus(TrPenjualan.Status.ACTIVE);
         String tgl = dateFormat.format(new Date());
         System.out.println("tgl : " + tgl);
         TrPenjualan pPenjualan = penjualanRepo.findTop1ByStatusOrderByPenjualanIdDesc(TrPenjualan.Status.ACTIVE);
@@ -122,69 +147,31 @@ public class PenjualanMBean extends AbstractManagedBean implements InitializingB
                 .toString();
     }
 
-    public void tambah() {
-        barang = new MstBarang();
-        TrPenjualan penjualanTmp = penjualanRepo.findTop1ByNotaJual(penjualan.getNotaJual());
-        if (penjualanTmp != null) {
-            showGrowl(FacesMessage.SEVERITY_INFO, "Informasi", "Data sudah ada, klik ubah");
-            RequestContext.getCurrentInstance().update("idList");
-            RequestContext.getCurrentInstance().update("growl");
-            RequestContext.getCurrentInstance().execute("PF('showDialocAct').hide()");
-            return;
-        }
-        penjualanRepo.save(penjualan);
-        barangRepo.save(barang);
-        init();
-        showGrowl(FacesMessage.SEVERITY_INFO, "Informasi", "Data berhasil disimpan");
-        RequestContext.getCurrentInstance().update("idList");
-        RequestContext.getCurrentInstance().update("growl");
-        RequestContext.getCurrentInstance().execute("PF('showDialocAct').hide()");
-    }
-
-    public void cari() {
-        penjualan = penjualanRepo.findTop1ByNotaJual(penjualan.getNotaJual());
-        if (penjualan == null) {
-            penjualan = new TrPenjualan();
-            showGrowl(FacesMessage.SEVERITY_INFO, "Informasi", "Data tidak ditemukan");
-            RequestContext.getCurrentInstance().update("idList");
-            RequestContext.getCurrentInstance().update("growl");
-            RequestContext.getCurrentInstance().execute("PF('showDialocAct').hide()");
+    public void hapusBaris() {
+        TrPenjualanDtl pjd = (TrPenjualanDtl) getRequestParam("penjualandtl");
+        System.out.println("pjd : " + pjd);
+        if (pjd != null) {
+            listPenjualanDtl.remove(pjd);
         }
     }
 
-    public void ubah() {
-        TrPenjualan penjualanTmp = penjualanRepo.findTop1ByNotaJual(penjualan.getNotaJual());
-        if (penjualanTmp == null) {
-            showGrowl(FacesMessage.SEVERITY_INFO, "Informasi", "Cari data terlebih dahulu");
-            RequestContext.getCurrentInstance().update("idList");
-            RequestContext.getCurrentInstance().update("growl");
-            RequestContext.getCurrentInstance().execute("PF('showDialocAct').hide()");
-            return;
-        }
-        penjualanRepo.save(penjualan);
-        barangRepo.save(barang);
-        init();
-        showGrowl(FacesMessage.SEVERITY_INFO, "Informasi", "Data berhasil disimpan");
-        RequestContext.getCurrentInstance().update("idList");
-        RequestContext.getCurrentInstance().update("growl");
-        RequestContext.getCurrentInstance().execute("PF('showDialocAct').hide()");
-    }
+    public void simpan() throws IOException {
+//        penjualan.set();
+        penjualan.setStatus(TrPenjualan.Status.ACTIVE);
+        penjualan = penjualanRepo.save(penjualan);
+        System.out.println("penjualan : " + penjualan);
+        penjualanDtlRepo.save(listPenjualanDtl);
 
-    public void hapus() {
-        TrPenjualan penjualanTmp = penjualanRepo.findTop1ByNotaJual(penjualan.getNotaJual());
-        if (penjualanTmp == null) {
-            showGrowl(FacesMessage.SEVERITY_INFO, "Informasi", "Cari data terlebih dahulu");
-            RequestContext.getCurrentInstance().update("idList");
-            RequestContext.getCurrentInstance().update("growl");
-            RequestContext.getCurrentInstance().execute("PF('showDialocAct').hide()");
-            return;
-        }
-        penjualanRepo.delete(penjualan);
-        init();
-        showGrowl(FacesMessage.SEVERITY_INFO, "Informasi", "Data berhasil dihapus");
+//        for (TrPenjualanDtl pjd : listPenjualanDtl) {
+//            penjualanDtlRepo.save(listPenjualanDtl);
+//        }
+        showGrowl(FacesMessage.SEVERITY_INFO, "Informasi", "Transaksi Berhasil");
         RequestContext.getCurrentInstance().update("idList");
         RequestContext.getCurrentInstance().update("growl");
-        RequestContext.getCurrentInstance().execute("PF('showDialocAct').hide()");
+        click();
+//        init();
+//        listPenjualanDtl = new ArrayList<>();
+//        reload();
     }
 
     public void cetak() {
@@ -206,6 +193,9 @@ public class PenjualanMBean extends AbstractManagedBean implements InitializingB
         Integer totalHarga = 0;
         if (penjualanDtl != null && penjualanDtl.getMstBarang() != null) {
             penjualanDtl.setHargaSatuan(penjualanDtl.getMstBarang().getHargaJual());
+            penjualanDtl.setKodeBarang(penjualanDtl.getMstBarang().getKodeBarang());
+            penjualanDtl.setNamaBarang(penjualanDtl.getMstBarang().getNamaBarang());
+            penjualanDtl.setTrPenjualan(penjualan);
             if (penjualanDtl.getJumlahJual() != null) {
                 subTotal = penjualanDtl.getJumlahJual() * penjualanDtl.getHargaSatuan();
                 penjualanDtl.setSubTotal(BigInteger.valueOf(subTotal));
@@ -215,58 +205,208 @@ public class PenjualanMBean extends AbstractManagedBean implements InitializingB
                 penjualan.setTotalHarga(BigInteger.valueOf(totalHarga));
             }
         }
-        System.out.println("subtotal : " + subTotal);
+//        System.out.println("subtotal : " + subTotal);
     }
-    
+
     public void tambahBaris() {
         penjualanDtl = new TrPenjualanDtl();
         System.out.println("penjualanDtl : " + penjualanDtl);
         listPenjualanDtl.add(penjualanDtl);
     }
-    
-    public void onChangeBayar() {
-        kembali = bayar - penjualan.getTotalHarga().intValue();
-    }
 
-    public void onChangeBarang() {
-//        if (penjualan != null && penjualan.getKodeBarang() != null) {
-//            penjualan.setNamaBarang(penjualan.getKodeBarang().getNamaBarang());
-//            penjualan.setHargaSatuan(penjualan.getKodeBarang().getHargaJual());
-//            penjualan.setStok(penjualan.getKodeBarang().getStok());
-//        } else {
-//            penjualan.setNamaBarang(null);
-//            penjualan.setHargaSatuan(null);
-//            penjualan.setStok(null);
-//        }
-    }
-
-//    public void totalHarga() {
-////        if (penjualan.getStok() != null && penjualan.getJumlahJual() != null) {
-////            if (penjualan.getStok() - penjualan.getJumlahJual() < 0) {
-////                showGrowl(FacesMessage.SEVERITY_INFO, "Informasi", "Stock habis");
-////                RequestContext.getCurrentInstance().update("growl");
-////                penjualan.setJumlahJual(penjualan.getStok());
-////                penjualan.setStok(penjualan.getKodeBarang().getStok() - penjualan.getJumlahJual());
-////            } else {
-////                if (penjualan.getNoFaktur() != null) {
-////                    TrPenjualan penjualanTmp = penjualanRepo.findTop1ByNoFaktur(penjualan.getNoFaktur());
-////                    if (penjualan != null) {
-////                        if (penjualanTmp.getJumlahJual() > penjualan.getJumlahJual()) {
-////                            penjualan.setStok(penjualan.getKodeBarang().getStok() + Math.abs(penjualanTmp.getJumlahJual() - penjualan.getJumlahJual()));
-////                        } else {
-////                            penjualan.setStok(penjualan.getKodeBarang().getStok() - Math.abs(penjualanTmp.getJumlahJual() - penjualan.getJumlahJual()));
-////                        }
-////                    } else {
-////                        penjualan.setStok(penjualan.getKodeBarang().getStok() - penjualan.getJumlahJual());
-////                    }
-////                } else {
-////                    penjualan.setStok(penjualan.getKodeBarang().getStok() - penjualan.getJumlahJual());
-////                }
-////
-////            }
-////        }
-////        if (penjualan.getHargaSatuan() != null && penjualan.getDiskon() != null && penjualan.getJumlahJual() != null) {
-////            penjualan.setTotalHarga((penjualan.getHargaSatuan() * (100 - penjualan.getDiskon()) / 100) * penjualan.getJumlahJual());
-////        }
+//    public void onChangeBayar() {
+//        kembali = bayar - penjualan.getTotalHarga().intValue();
 //    }
+    public void cariPenjualanByNota() {
+        System.out.println("cariNotaJual : " + cariNotaJual);
+        listPenjualan = new ArrayList<>();
+        if (cariNotaJual == null || cariNotaJual.equals("")) {
+            listPenjualan = penjualanRepo.findAllByStatus(TrPenjualan.Status.ACTIVE);
+        } else {
+            listPenjualan = penjualanRepo.findAllByNotaJual(cariNotaJual);
+        }
+
+    }
+
+    public void showDialogAction() {
+        penjualan = (TrPenjualan) getRequestParam("penjualan");
+        System.out.println("penjualan : " + penjualan);
+        if (penjualan != null) {
+            listPenjualanDtl = new ArrayList<>();
+            listPenjualanDtl = penjualanDtlRepo.findAllByTrPenjualan(penjualan);
+//            System.out.println("listPenjualanDtl : " + listPenjualanDtl);
+            RequestContext.getCurrentInstance().reset("idDialocAct");
+            RequestContext.getCurrentInstance().update("idDialocAct");
+            RequestContext.getCurrentInstance().execute("PF('showDialocAct').show()");
+
+        }
+    }
+
+    public void tes() throws SQLException, JRException, IOException {
+        Connection connection = null;
+        try {
+            connection = dataSource.getConnection();
+            System.out.println("connection : " + connection);
+//            SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+//            String tglDariStr = df.format(tglDari);
+//            String tglSampaiStr = df.format(tglSampai);
+            System.out.println("penjualan jasper : " + penjualan);
+            HashMap hm = new HashMap();
+            hm.put(JRParameter.REPORT_LOCALE, new java.util.Locale("id"));
+//            hm.put("PENJUALAN_ID", penjualan.getPenjualanId().toString());
+//            System.out.println("PENJUALAN_ID : " + penjualan.getPenjualanId());
+
+            String jrxml = "/Reports/tess.jrxml";
+            FacesContext facescontext = FacesContext.getCurrentInstance();
+            ExternalContext ext = facescontext.getExternalContext();
+            HttpServletRequest request = (HttpServletRequest) ext.getRequest();
+            String pathJrxml = request.getSession().getServletContext().getRealPath(jrxml);
+            String pathJasper = pathJrxml.replace(".jrxml", ".jasper");
+            File fileJrxml = new File(pathJrxml);
+            System.out.println("fileJrxml : " + fileJrxml);
+            File fileJasper = new File(pathJasper);
+            if (!fileJasper.exists() || fileJasper.lastModified() < fileJrxml.lastModified()) {
+                JasperCompileManager.compileReportToFile(pathJrxml, pathJasper);
+            }
+
+            JasperPrint jasperPrint = JasperFillManager.fillReport(pathJasper, hm, connection);
+            HttpServletResponse response = (HttpServletResponse) ext.getResponse();
+            byte[] bytes = JasperExportManager.exportReportToPdf(jasperPrint);
+            response.setContentType("application/pdf");
+            response.setHeader("Content-Disposition", "inline; filename=\"Cetak_Transaksi.pdf\"");
+            response.setHeader("Pragma", "public");
+            response.setHeader("Chache-Control", "cache");
+            response.setHeader("Chache-Control", "must-revalidate");
+            response.setContentLength(bytes.length);
+            @Cleanup
+            ServletOutputStream outStream = response.getOutputStream();
+            outStream.write(bytes);
+            outStream.flush();
+            facescontext.responseComplete();
+            System.out.println("selesai..");
+        } catch (JRException | IOException | SQLException e) {
+            FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_INFO, "Error",
+                    "Terjadi masalah PDF dengan error " + e.getMessage());
+            RequestContext.getCurrentInstance().showMessageInDialog(message);
+            System.out.println("error : " + e);
+        } finally {
+            connection.close();
+        }
+    }
+
+    public void cetakTransaksi() throws ClassNotFoundException, SQLException, JRException, IOException {
+        Connection connection = null;
+        try {
+            connection = dataSource.getConnection();
+            System.out.println("connection : " + connection);
+//            SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+//            String tglDariStr = df.format(tglDari);
+//            String tglSampaiStr = df.format(tglSampai);
+//            System.out.println("penjualan jasper : " + penjualan);
+            HashMap hm = new HashMap();
+            hm.put(JRParameter.REPORT_LOCALE, new java.util.Locale("id"));
+            hm.put("PENJUALAN_ID", penjualan.getPenjualanId().toString());
+            System.out.println("PENJUALAN_ID : " + penjualan.getPenjualanId());
+
+            String jrxml = "/Reports/cetak_transaksi.jrxml";
+            FacesContext facescontext = FacesContext.getCurrentInstance();
+            ExternalContext ext = facescontext.getExternalContext();
+            HttpServletRequest request = (HttpServletRequest) ext.getRequest();
+            String pathJrxml = request.getSession().getServletContext().getRealPath(jrxml);
+            String pathJasper = pathJrxml.replace(".jrxml", ".jasper");
+            File fileJrxml = new File(pathJrxml);
+            System.out.println("fileJrxml : " + fileJrxml);
+            File fileJasper = new File(pathJasper);
+            if (!fileJasper.exists() || fileJasper.lastModified() < fileJrxml.lastModified()) {
+                JasperCompileManager.compileReportToFile(pathJrxml, pathJasper);
+            }
+
+            JasperPrint jasperPrint = JasperFillManager.fillReport(pathJasper, hm, connection);
+            HttpServletResponse response = (HttpServletResponse) ext.getResponse();
+            byte[] bytes = JasperExportManager.exportReportToPdf(jasperPrint);
+            response.setContentType("application/pdf");
+            response.setHeader("Content-Disposition", "inline; filename=\"Cetak_Transaksi.pdf\"");
+            response.setHeader("Pragma", "public");
+            response.setHeader("Chache-Control", "cache");
+            response.setHeader("Chache-Control", "must-revalidate");
+            response.setContentLength(bytes.length);
+            @Cleanup
+            ServletOutputStream outStream = response.getOutputStream();
+            outStream.write(bytes);
+            outStream.flush();
+            facescontext.responseComplete();
+            System.out.println("selesai..");
+        } catch (JRException | IOException | SQLException e) {
+            FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_INFO, "Error",
+                    "Terjadi masalah PDF dengan error " + e.getMessage());
+            RequestContext.getCurrentInstance().showMessageInDialog(message);
+            System.out.println("error : " + e);
+        } finally {
+            connection.close();
+        }
+    }
+
+    public void laporanTransaksi() throws ClassNotFoundException, SQLException, JRException, IOException {
+        Connection connection = null;
+        try {
+            connection = dataSource.getConnection();
+            System.out.println("connection : " + connection);
+            SimpleDateFormat df = new SimpleDateFormat("dd-MM-yyyy");
+            String tglDariStr = df.format(tglDari);
+            String tglSampaiStr = df.format(tglSampai);
+            System.out.println("penjualan jasper : " + penjualan);
+            HashMap hm = new HashMap();
+            hm.put(JRParameter.REPORT_LOCALE, new java.util.Locale("id"));
+            
+            hm.put("TGL_AWAL", tglDariStr);
+            System.out.println("dari : {}"+ tglDariStr);
+            hm.put("TGL_AKHIR", tglSampaiStr);
+            System.out.println("sampai : {}" + tglSampaiStr);
+            String jrxml = "/Reports/laporan_transaksi.jrxml";
+            FacesContext facescontext = FacesContext.getCurrentInstance();
+            ExternalContext ext = facescontext.getExternalContext();
+            HttpServletRequest request = (HttpServletRequest) ext.getRequest();
+            String pathJrxml = request.getSession().getServletContext().getRealPath(jrxml);
+            String pathJasper = pathJrxml.replace(".jrxml", ".jasper");
+            File fileJrxml = new File(pathJrxml);
+            System.out.println("fileJrxml : " + fileJrxml);
+            File fileJasper = new File(pathJasper);
+            if (!fileJasper.exists() || fileJasper.lastModified() < fileJrxml.lastModified()) {
+                JasperCompileManager.compileReportToFile(pathJrxml, pathJasper);
+            }
+
+            JasperPrint jasperPrint = JasperFillManager.fillReport(pathJasper, hm, connection);
+            HttpServletResponse response = (HttpServletResponse) ext.getResponse();
+            byte[] bytes = JasperExportManager.exportReportToPdf(jasperPrint);
+            response.setContentType("application/pdf");
+            response.setHeader("Content-Disposition", "inline; filename=\"Cetak_Transaksi.pdf\"");
+            response.setHeader("Pragma", "public");
+            response.setHeader("Chache-Control", "cache");
+            response.setHeader("Chache-Control", "must-revalidate");
+            response.setContentLength(bytes.length);
+            @Cleanup
+            ServletOutputStream outStream = response.getOutputStream();
+            outStream.write(bytes);
+            outStream.flush();
+            facescontext.responseComplete();
+            System.out.println("selesai..");
+        } catch (JRException | IOException | SQLException e) {
+            FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_INFO, "Error",
+                    "Terjadi masalah PDF dengan error " + e.getMessage());
+            RequestContext.getCurrentInstance().showMessageInDialog(message);
+            System.out.println("error : " + e);
+        } finally {
+            connection.close();
+        }
+    }
+
+    public void click() {
+        RequestContext context = RequestContext.getCurrentInstance();
+        context.execute("document.getElementById('cetak').click();");
+    }
+
+    public void reload() throws IOException {
+        ExternalContext ec = FacesContext.getCurrentInstance().getExternalContext();
+        ec.redirect(((HttpServletRequest) ec.getRequest()).getRequestURI());
+    }
 }

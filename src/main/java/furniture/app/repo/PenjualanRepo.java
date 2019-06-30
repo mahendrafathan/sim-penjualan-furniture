@@ -18,15 +18,19 @@ import furniture.app.model.TrPenjualan;
  * @author Owner
  */
 @Repository
-public interface PenjualanRepo extends JpaRepository<TrPenjualan, Integer>, JpaSpecificationExecutor<TrPenjualan>{
-    
+public interface PenjualanRepo extends JpaRepository<TrPenjualan, Integer>, JpaSpecificationExecutor<TrPenjualan> {
+
     public TrPenjualan findTop1ByNotaJual(String notaJual);
-    
-    public TrPenjualan findTop1ByStatusOrderByPenjualanIdDesc (TrPenjualan.Status status);
-    
+
+    public List<TrPenjualan> findAllByNotaJual(String notaJual);
+
+    public TrPenjualan findTop1ByStatusOrderByPenjualanIdDesc(TrPenjualan.Status status);
+
     @Query(value = "SELECT * FROM penjualan p WHERE MONTH(p.tgl_jual) = ?1", nativeQuery = true)
     public List<TrPenjualan> listPenjualanBulan(String bulan);
 
     @Query(value = "SELECT * FROM penjualan p where p.tgl_jual between ?1 and ?2", nativeQuery = true)
     public List<TrPenjualan> listPenjualan(Date tglAwal, Date tglAkhir);
+
+    public List<TrPenjualan> findAllByStatus(TrPenjualan.Status status);
 }
